@@ -1,0 +1,20 @@
+[package]
+name = "timezonebot"
+version = "0.1.0"
+authors = ["Nogamara <armagonlive@gmail.com>"]
+
+[lib]
+name = "tzbot"
+path = "src/tzbot.rs"
+
+[[bin]]
+name = "timezonebot"
+path = "src/main.rs"
+
+[dependencies]
+hourglass = "0.6.5"
+regex = "1.0.2"
+time = "0.1"
+mammut = "0.11.0"
+toml = "0.4.6"
+
