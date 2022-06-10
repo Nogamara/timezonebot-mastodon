@@ -1,5 +1,9 @@
 # TimezoneBot - because Time Zones are hard
 
+## Update 2022-06
+
+Archiving this because mammut hasn't been updated in ages and even the fork elefrens is abandonded.
+
 ## why?
 
 This bot will parse some time formats if you @ mention it on Mastodon and reply with a few conversions.
