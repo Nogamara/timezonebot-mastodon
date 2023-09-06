@@ -1,9 +1,5 @@
 # TimezoneBot - because Time Zones are hard
 
-## Update 2022-06
-
-Archiving this because mammut hasn't been updated in ages and even the fork elefrens is abandonded.
-
 ## why?
 
 This bot will parse some time formats if you @ mention it on Mastodon and reply with a few conversions.
@@ -28,8 +24,17 @@ cargo build --release
 ./target/release/timezonebot
 ```
 
-It will ask for permission on the first run.
+It will ask for permission on the first run and write to `mastodon-data.toml`
+
+## todo
+
+  * the 0.1.x version of the `time` crate is 4 years old and later ones are incompatible
+
+## Changelog
+
+  * 2022-06: Archiving this because mammut hasn't been updated in ages and even the fork elefrens is abandonded.
+  * 2023-09: Unarchiving this because it works with mastodon-async. See TODO though
 
 ## stuff
 
-  * uses [mammut](https://crates.io/crate/mammut) for the heavy lifting
+  * uses [mastodon-async](https://crates.io/crate/mastodon-async) for the heavy lifting

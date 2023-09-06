@@ -1,10 +1,6 @@
-extern crate regex;
-extern crate time;
-extern crate tzbot;
-
-use mastodon_async::prelude::*;
+//use mastodon_async::prelude::*;
 use mastodon_async::helpers::toml;
-use mastodon_async::{helpers::cli, Language, Result, StatusBuilder, Visibility};
+use mastodon_async::{helpers::cli, Language, Mastodon, Registration, Result, StatusBuilder, Visibility};
 use regex::Regex;
 use tzbot::convert;
 

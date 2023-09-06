@@ -1,11 +1,6 @@
 #![crate_name = "tzbot"]
 #![crate_type = "lib"]
 
-extern crate hourglass;
-extern crate regex;
-extern crate time;
-
-
 use hourglass::Timezone;
 use regex::Regex;
 use std::collections::HashMap;
