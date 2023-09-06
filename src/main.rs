@@ -1,16 +1,10 @@
-extern crate mammut;
 extern crate regex;
 extern crate time;
-extern crate toml;
 extern crate tzbot;
 
-use std::io;
-use std::fs::File;
-use std::io::prelude::*;
-
-use mammut::{Data, Mastodon, Registration};
-use mammut::apps::{AppBuilder, Scopes};
-use mammut::status_builder::{StatusBuilder};
+use mastodon_async::prelude::*;
+use mastodon_async::helpers::toml;
+use mastodon_async::{helpers::cli, Language, Result, StatusBuilder, Visibility};
 use regex::Regex;
 use tzbot::convert;
 
@@ -37,40 +31,36 @@ fn now() -> String {
     }
 }
 
-fn main() {
-    let mastodon = match File::open("mastodon-data.toml") {
-        Ok(mut file) => {
-            let mut config = String::new();
-            file.read_to_string(&mut config).unwrap();
-            let data: Data = toml::from_str(&config).unwrap();
-            Mastodon::from_data(data)
-        },
-        Err(_) => register(),
+#[tokio::main]
+async fn main() -> Result<()> {
+    let mastodon = if let Ok(data) = toml::from_file("mastodon-data.toml") {
+        Mastodon::from(data)
+    } else {
+        register().await?
     };
 
-    let you = mastodon.verify_credentials().unwrap();
+    let you = mastodon.verify_credentials().await?;
 
     log!("{:#?}", you);
 
-    let list = mastodon.notifications().unwrap();
+    let list = mastodon.notifications().await?;
 
     let re = Regex::new(r"(?i)<a href=.https://botsin.space/@timezonebot.([^>]+)>@<span>timezonebot</span></a></span>(.*)</p>").unwrap();
 
     for toot in list.initial_items {
-        println!("({}) {} @{} {:?}", toot.id, toot.account.acct, toot.account.username, toot.created_at);
+        println!("--------");
+        println!("({}) ({}) {} @{} {:?}", toot.id, toot.account.id, toot.account.acct, toot.account.username, toot.created_at);
+        //println!("{:?}", toot);
         println!(" ");
-        match toot.status {
-            Some(s) => {
-                //println!("{}", s.content);
-                for cap in re.captures_iter(&s.content) {
-                    //println!("{}", &cap[0]);
-                    //println!("{}", &cap[1]);
-                    println!("{}", &cap[2]);
-                    //let mut x = String::new(&cap[2]).trim();
+        match toot.status  {
+            Some(stat) => {
+                for cap in re.captures_iter(&stat.content) {
+                    println!("Toot:[{}]", &cap[2]);
+
                     let result = convert(&cap[2]);
                     match result {
                         None => {
-                            log!("NOPE");
+                            log!("No match!");
                         },
                         Some(val) => {
                             let mut rt = String::new().to_owned();
@@ -78,15 +68,22 @@ fn main() {
                             rt.push_str(&toot.account.acct);
                             rt.push_str(" \n");
                             rt.push_str(&val);
-                            println!("{:?}", rt);
-                            let mut reply = StatusBuilder::new(rt);
-                            let id = u64::from_str_radix(&toot.id, 10).unwrap();
-                            reply.in_reply_to_id = Some(id);
-                            let r = mastodon.new_status(reply);
-                            match r {
-                                Err(f) => println!("Err: {:?}", f),
-                                Ok(rr) => println!("OK : {:?}", rr),
+                            println!("RT:{:?}", rt);
+                            let reply = StatusBuilder::new()
+                                .status(rt)
+                                .visibility(Visibility::Unlisted)
+                                .language(Language::Eng)
+                                .in_reply_to(stat.id.to_string())
+                                .build()?;
+                            println!("Reply:{:?}", reply);
+                            let status = mastodon.new_status(reply).await?;
+                            if let Some(url) = status.url {
+                                println!(", visible when logged in at: {}\n", url);
+                            } else {
+                                println!(". For some reason, the status URL was not returned from the server.");
+                                println!("Maybe try here? {}/{}", status.account.url, status.id);
                             }
+
                         },
                     }
                 }
@@ -94,35 +91,22 @@ fn main() {
             _ => (),
         }
         println!("============================================================");
+
+        let _ = mastodon.clear_notifications().await?;
     }
-    let _ = mastodon.clear_notifications();
+
+    Ok(())
 }
 
-fn register() -> Mastodon {
-    let app = AppBuilder {
-        client_name: "tzbot",
-        redirect_uris: "urn:ietf:wg:oauth:2.0:oob",
-        scopes: Scopes::ReadWrite,
-        website: Some("https://github.com/nogamara"),
-    };
-
-    let mut registration = Registration::new("https://botsin.space");
-    registration.register(app).unwrap();;
-    let url = registration.authorise().unwrap();
-
-    println!("Click this link to authorize on Mastodon: {}", url);
-    println!("Paste the returned authorization code: ");
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).unwrap();
-
-    let code = input.trim();
-    let mastodon = registration.create_access_token(code.to_string()).unwrap();
+async fn register() -> Result<Mastodon> {
+    let registration = Registration::new("https://botsin.space")
+        .client_name("timezonebot")
+        .build()
+        .await?;
+    let mastodon = cli::authenticate(registration).await?;
 
     // Save app data for using on the next run.
-    let toml = toml::to_string(&*mastodon).unwrap();
-    let mut file = File::create("mastodon-data.toml").unwrap();
-    file.write_all(toml.as_bytes()).unwrap();
+    toml::to_file(&mastodon.data, "mastodon-data.toml")?;
 
-    mastodon
+    Ok(mastodon)
 }
